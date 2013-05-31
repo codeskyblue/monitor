@@ -2,6 +2,14 @@
 Monitor /proc
 
 Get Cpu, Mem, and process's Cpu, Mem.
+
+Variable:Proc contains all information about system current status.
+
+Proc struct {
+	Cpu	 float64
+	Mem  uint64
+	Ncpu int
+	....
 */
 
 package monitor
@@ -29,6 +37,7 @@ var Proc = s_proc{}
 //var ProcExeList = make(map[string][]int, 1000) // TODO  exe -> pid
 //var SystemInfo = SysInfo{}
 
+// Refresh Proc information
 func init() {
 	Proc.Pids = make(map[int]ProcPidInfo, 1000)
 	go func() {
@@ -56,6 +65,7 @@ func init() {
 	}()
 }
 
+// Get all pids
 func Pids() ([]int, error) {
 	f, err := os.Open(`/proc`)
 	if err != nil {
@@ -79,6 +89,7 @@ type ProcStat struct {
 	User, Nice, Sys, Idle, Iowait, Irq, Softirq uint64
 }
 
+// Update from /proc/stst
 func (s *ProcStat) Update() (st ProcStat, err error) {
 	f, err := os.Open("/proc/stat")
 	if err != nil {
@@ -99,13 +110,14 @@ type SysInfo struct {
 	St   ProcStat
 }
 
+// Update Sysinf (include Cpu, Mem, Ncpu)
 func (si *SysInfo) Update() (err error) {
 	org, err := si.St.Update()
 	if err != nil {
 		return
 	}
 	//fmt.Println(org)
-	time.Sleep(1 * time.Second)
+	time.Sleep(1 * time.Second) // sleep for 1 second
 	cur, err := si.St.Update()
 	if err != nil {
 		return
@@ -139,7 +151,7 @@ type ProcPidInfo struct {
 	random int64
 }
 
-// Update ProcInfo
+// Update ProcPidInfo
 func (pi *ProcPidInfo) Update() (err error) {
 	basedir := filepath.Join(PROC_DIR, strconv.Itoa(pi.Pid))
 	pi.Exe, _ = os.Readlink(filepath.Join(basedir, "exe"))
@@ -175,6 +187,5 @@ func (ps *ProcPidStat) Update() (err error) {
 		&ig, &ig, &ps.State, &ps.Ppid, &ps.Pgrp, &ps.Session,
 		&ig, &ig, &ig, &ig, &ig, &ig, &ig,
 		&ps.Utime, &ps.Stime, &ps.Cutime, &ps.Cstime)
-	//	fmt.Println("PID:", state, ppid, utime, stime, cutime, cstime)
 	return
 }

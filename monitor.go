@@ -19,8 +19,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -33,9 +35,29 @@ type s_proc struct {
 
 var Proc = s_proc{}
 
-//var ProcPidList = make(map[int]ProcInfo, 1000) // TODO  pid->procinfo
-//var ProcExeList = make(map[string][]int, 1000) // TODO  exe -> pid
-//var SystemInfo = SysInfo{}
+func Cpu() float64 {
+	return Proc.Cpu
+}
+
+func Mem() uint64 {
+	return Proc.Mem
+}
+
+func Ncpu() int {
+	return Proc.Ncpu
+}
+
+func Hostname() (name string, err error) {
+	data, err := readFile("/proc/sys/kernel/hostname")
+	if err != nil {
+		return
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+func readFile(filename string) (data []byte, err error) {
+	return exec.Command("/bin/cat", filename).Output()
+}
 
 // Refresh Proc information
 func init() {
@@ -91,14 +113,13 @@ type ProcStat struct {
 
 // Update from /proc/stst
 func (s *ProcStat) Update() (st ProcStat, err error) {
-	f, err := os.Open("/proc/stat")
+	data, err := readFile(filepath.Join(PROC_DIR, "stat"))
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	defer f.Close()
 	var ig string
-	fmt.Fscanln(f, &ig, &s.User, &s.Nice, &s.Sys, &s.Idle, &s.Iowait, &s.Irq, &s.Softirq)
+	fmt.Sscanln(string(data), &ig, &s.User, &s.Nice, &s.Sys, &s.Idle, &s.Iowait, &s.Irq, &s.Softirq)
 	st = *s
 	return
 }
@@ -177,7 +198,7 @@ func (pi *ProcPidInfo) Update() (err error) {
 
 // Read from /proc/[num]/stat
 func (ps *ProcPidStat) Update() (err error) {
-	content, err := ioutil.ReadFile(filepath.Join(PROC_DIR, strconv.Itoa(ps.Pid), "stat"))
+	content, err := readFile(filepath.Join(PROC_DIR, strconv.Itoa(ps.Pid), "stat"))
 	if err != nil {
 		return
 	}

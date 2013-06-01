@@ -29,11 +29,12 @@ import (
 const PROC_DIR = "/proc"
 
 type s_proc struct {
-	SysInfo
-	Pids map[int]ProcPidInfo
+	sysInfo
+	Pids map[int]procPidInfo
 }
 
 var Proc = s_proc{}
+var Interval time.Duration = time.Second * 1
 
 func Cpu() float64 {
 	return Proc.Cpu
@@ -59,30 +60,34 @@ func readFile(filename string) (data []byte, err error) {
 	return exec.Command("/bin/cat", filename).Output()
 }
 
+func refresh(interval time.Duration) {
+	Proc.Update()
+	time.Sleep(1 * time.Second)
+
+	pids, err := Pids()
+	if err != nil {
+		log.Println(err)
+        return
+	}
+	uid := time.Now().UnixNano()
+	for _, pid := range pids {
+		pi := procPidInfo{Pid: pid, random: uid}
+		pi.Update()
+		Proc.Pids[pid] = pi
+	}
+	for pid, pinfo := range Proc.Pids {
+		if pinfo.random != uid {
+			delete(Proc.Pids, pid)
+		}
+	}
+}
+
 // Refresh Proc information
 func init() {
-	Proc.Pids = make(map[int]ProcPidInfo, 1000)
+	Proc.Pids = make(map[int]procPidInfo, 1000)
 	go func() {
 		for {
-			Proc.Update()
-			time.Sleep(1 * time.Second)
-
-			pids, err := Pids()
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			uid := time.Now().UnixNano()
-			for _, pid := range pids {
-				pi := ProcPidInfo{Pid: pid, random: uid}
-				pi.Update()
-				Proc.Pids[pid] = pi
-			}
-			for pid, pinfo := range Proc.Pids {
-				if pinfo.random != uid {
-					delete(Proc.Pids, pid)
-				}
-			}
+			refresh(Interval)
 		}
 	}()
 }
@@ -107,12 +112,12 @@ func Pids() ([]int, error) {
 	return pids, nil
 }
 
-type ProcStat struct {
+type procStat struct {
 	User, Nice, Sys, Idle, Iowait, Irq, Softirq uint64
 }
 
 // Update from /proc/stst
-func (s *ProcStat) Update() (st ProcStat, err error) {
+func (s *procStat) Update() (st procStat, err error) {
 	data, err := readFile(filepath.Join(PROC_DIR, "stat"))
 	if err != nil {
 		log.Println(err)
@@ -124,15 +129,15 @@ func (s *ProcStat) Update() (st ProcStat, err error) {
 	return
 }
 
-type SysInfo struct {
+type sysInfo struct {
 	Cpu  float64
 	Mem  uint64
 	Ncpu int
-	St   ProcStat
+	St   procStat
 }
 
 // Update Sysinf (include Cpu, Mem, Ncpu)
-func (si *SysInfo) Update() (err error) {
+func (si *sysInfo) Update() (err error) {
 	org, err := si.St.Update()
 	if err != nil {
 		return
@@ -143,7 +148,7 @@ func (si *SysInfo) Update() (err error) {
 	if err != nil {
 		return
 	}
-	sum := func(s *ProcStat) uint64 {
+	sum := func(s *procStat) uint64 {
 		return s.User + s.Nice + s.Sys + s.Iowait + s.Irq + s.Softirq
 	}
 	s1, s2 := sum(&org), sum(&cur)
@@ -151,14 +156,14 @@ func (si *SysInfo) Update() (err error) {
 	return
 }
 
-type ProcPidStat struct {
+type procPidStat struct {
 	Pid                          int
 	State                        string
 	Ppid, Pgrp                   int
 	Session                      int
 	Utime, Stime, Cutime, Cstime uint64
 }
-type ProcPidInfo struct {
+type procPidInfo struct {
 	Pid  int
 	Exe  string
 	Root string
@@ -167,13 +172,13 @@ type ProcPidInfo struct {
 	Cpu  float32
 	Mem  uint64
 	Fd   []string
-	Stat ProcPidStat
+	Stat procPidStat
 
 	random int64
 }
 
-// Update ProcPidInfo
-func (pi *ProcPidInfo) Update() (err error) {
+// Update procPidInfo
+func (pi *procPidInfo) Update() (err error) {
 	basedir := filepath.Join(PROC_DIR, strconv.Itoa(pi.Pid))
 	pi.Exe, _ = os.Readlink(filepath.Join(basedir, "exe"))
 	pi.Cwd, _ = os.Readlink(filepath.Join(basedir, "cwd"))
@@ -197,7 +202,7 @@ func (pi *ProcPidInfo) Update() (err error) {
 }
 
 // Read from /proc/[num]/stat
-func (ps *ProcPidStat) Update() (err error) {
+func (ps *procPidStat) Update() (err error) {
 	content, err := readFile(filepath.Join(PROC_DIR, strconv.Itoa(ps.Pid), "stat"))
 	if err != nil {
 		return

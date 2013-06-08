@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -67,7 +68,7 @@ func refresh(interval time.Duration) {
 	pids, err := Pids()
 	if err != nil {
 		log.Println(err)
-        return
+		return
 	}
 	uid := time.Now().UnixNano()
 	for _, pid := range pids {
@@ -114,6 +115,7 @@ func Pids() ([]int, error) {
 
 type procStat struct {
 	User, Nice, Sys, Idle, Iowait, Irq, Softirq uint64
+	Ncpu                                        int
 }
 
 // Update from /proc/stst
@@ -126,6 +128,9 @@ func (s *procStat) Update() (st procStat, err error) {
 	var ig string
 	fmt.Sscanln(string(data), &ig, &s.User, &s.Nice, &s.Sys, &s.Idle, &s.Iowait, &s.Irq, &s.Softirq)
 	st = *s
+	// Cpu Count
+	re, _ := regexp.Compile("\ncpu[0-9]")
+	s.Ncpu = len(re.FindAllString(string(data), 100))
 	return
 }
 
@@ -153,6 +158,7 @@ func (si *sysInfo) Update() (err error) {
 	}
 	s1, s2 := sum(&org), sum(&cur)
 	si.Cpu = float64(s2-s1) / float64(s2-s1+cur.Idle-org.Idle)
+	si.Ncpu = si.St.Ncpu
 	return
 }
 

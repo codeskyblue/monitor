@@ -34,8 +34,14 @@ type s_proc struct {
 	Pids map[int]procPidInfo
 }
 
-var Proc = s_proc{}
+var Proc = s_proc{
+	Pids: make(map[int]procPidInfo, 100),
+}
 var Interval time.Duration = time.Second * 1
+
+func Ncpu() int {
+	return Proc.Ncpu
+}
 
 func Cpu() float64 {
 	return Proc.Cpu
@@ -45,25 +51,17 @@ func Mem() uint64 {
 	return Proc.Mem
 }
 
-func Ncpu() int {
-	return Proc.Ncpu
-}
-
-func Hostname() (name string, err error) {
-	data, err := readFile("/proc/sys/kernel/hostname")
-	if err != nil {
-		return
-	}
-	return strings.TrimSpace(string(data)), nil
+// initial the proc stat
+func init() {
+	refresh()
 }
 
 func readFile(filename string) (data []byte, err error) {
 	return exec.Command("/bin/cat", filename).Output()
 }
 
-func refresh(interval time.Duration) {
+func refresh() {
 	Proc.Update()
-	time.Sleep(1 * time.Second)
 
 	pids, err := Pids()
 	if err != nil {
@@ -83,14 +81,20 @@ func refresh(interval time.Duration) {
 	}
 }
 
+func Hostname() (name string, err error) {
+	data, err := readFile("/proc/sys/kernel/hostname")
+	if err != nil {
+		return
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
 // Refresh Proc information
-func init() {
-	Proc.Pids = make(map[int]procPidInfo, 1000)
-	go func() {
-		for {
-			refresh(Interval)
-		}
-	}()
+func AutoRefresh() {
+	for {
+		refresh()
+		time.Sleep(Interval)
+	}
 }
 
 // Get all pids

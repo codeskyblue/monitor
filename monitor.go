@@ -15,6 +15,7 @@ Proc struct {
 package monitor
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -34,10 +35,20 @@ type s_proc struct {
 	Pids map[int]procPidInfo
 }
 
+var ErrorNotExists = errors.New("pid not exists")
+
 var Proc = s_proc{
 	Pids: make(map[int]procPidInfo, 100),
 }
 var Interval time.Duration = time.Second * 1
+
+func Pid(pid int) (pi procPidInfo, err error) {
+	pi, ok := Proc.Pids[pid]
+	if !ok {
+		err = ErrorNotExists
+	}
+	return
+}
 
 func Ncpu() int {
 	return Proc.Ncpu
@@ -53,14 +64,15 @@ func Mem() uint64 {
 
 // initial the proc stat
 func init() {
-	refresh()
+	go Refresh()
 }
 
 func readFile(filename string) (data []byte, err error) {
 	return exec.Command("/bin/cat", filename).Output()
 }
 
-func refresh() {
+// refresh proc states
+func Refresh() {
 	Proc.Update()
 
 	pids, err := Pids()
@@ -74,6 +86,7 @@ func refresh() {
 		pi.Update()
 		Proc.Pids[pid] = pi
 	}
+	// clean not existed pids
 	for pid, pinfo := range Proc.Pids {
 		if pinfo.random != uid {
 			delete(Proc.Pids, pid)
@@ -89,22 +102,28 @@ func Hostname() (name string, err error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-// Refresh Proc information
-func AutoRefresh() {
-	for {
-		refresh()
-		time.Sleep(Interval)
+// Refresh Proc information in a gorountine
+func GoRefresh() {
+	go func() {
+		for {
+			Refresh()
+			time.Sleep(Interval)
+		}
+	}()
+}
+
+func ls(dir string) (names []string, err error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return
 	}
+	defer f.Close()
+	return f.Readdirnames(-1)
 }
 
 // Get all pids
 func Pids() ([]int, error) {
-	f, err := os.Open(`/proc`)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	names, err := f.Readdirnames(-1)
+	names, err := ls("/proc")
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +213,7 @@ func (pi *procPidInfo) Update() (err error) {
 	pi.Cwd, _ = os.Readlink(filepath.Join(basedir, "cwd"))
 	pi.Root, _ = os.Readlink(filepath.Join(basedir, "root"))
 
+	// FIXME: finish it
 	//pi.Stat.Update()
 	// read fd
 	fs, err := ioutil.ReadDir(filepath.Join(basedir, "fd"))

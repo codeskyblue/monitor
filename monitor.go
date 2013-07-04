@@ -25,8 +25,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
-    "sync"
 )
 
 var refreshLock = sync.Mutex{}
@@ -74,11 +74,10 @@ func readFile(filename string) (data []byte, err error) {
 	return exec.Command("/bin/cat", filename).Output()
 }
 
-
 // refresh proc states
 func Refresh() {
-    refreshLock.Lock()
-    defer refreshLock.Unlock()
+	refreshLock.Lock()
+	defer refreshLock.Unlock()
 
 	Proc.Update()
 
@@ -146,6 +145,7 @@ func Pids() ([]int, error) {
 type procStat struct {
 	User, Nice, Sys, Idle, Iowait, Irq, Softirq uint64
 	Ncpu                                        int
+	timeStamp                                   time.Time
 }
 
 // Update from /proc/stst
@@ -161,6 +161,7 @@ func (s *procStat) Update() (st procStat, err error) {
 	// Cpu Count
 	re, _ := regexp.Compile("\ncpu[0-9]")
 	s.Ncpu = len(re.FindAllString(string(data), 100))
+	s.timeStamp = time.Now()
 	return
 }
 
@@ -173,12 +174,7 @@ type sysInfo struct {
 
 // Update Sysinf (include Cpu, Mem, Ncpu)
 func (si *sysInfo) Update() (err error) {
-	org, err := si.St.Update()
-	if err != nil {
-		return
-	}
-	//fmt.Println(org)
-	time.Sleep(1 * time.Second) // sleep for 1 second
+	org := si.St
 	cur, err := si.St.Update()
 	if err != nil {
 		return

@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"github.com/shxsun/monitor"
 	"strings"
+    "os"
 )
 
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
-		fmt.Printf("Usage: %s <program path>\n")
+		fmt.Printf("Usage: %s <program path>\n", os.Args[0])
 		return
 	}
 

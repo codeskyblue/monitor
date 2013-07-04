@@ -26,7 +26,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+    "sync"
 )
+
+var refreshLock = sync.Mutex{}
 
 const PROC_DIR = "/proc"
 
@@ -71,8 +74,12 @@ func readFile(filename string) (data []byte, err error) {
 	return exec.Command("/bin/cat", filename).Output()
 }
 
+
 // refresh proc states
 func Refresh() {
+    refreshLock.Lock()
+    defer refreshLock.Unlock()
+
 	Proc.Update()
 
 	pids, err := Pids()

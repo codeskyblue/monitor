@@ -1,6 +1,6 @@
 Monitor of Linux Process
 =========================
-2013-5-28 sun shengxiang
+[![Build Status](https://drone.io/github.com/shxsun/monitor/status.png)](https://drone.io/github.com/shxsun/monitor/latest)
 
 Used in Linux system.
 
@@ -10,7 +10,7 @@ Parse /proc info and get Cpu, Mem, Hostname, Pids (and each state)
 
     go get github.com/shxsun/monitor
 
-## Example
+## Example (see more in example dir)
     
     package main
 

@@ -20,6 +20,7 @@ Parse /proc info and get Cpu, Mem, Hostname, Pids (and each state)
 
     func main(){
         // monitor.Interval = time.Second * 2   // default 1s, (refresh gap)
+        monitor.GoRefresh()
         for {
             fmt.Printf("Cpu usage: %.1f%%\n", monitor.Cpu() * 100)
             time.Sleep(5e8) // 0.5s

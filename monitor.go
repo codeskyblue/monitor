@@ -65,11 +65,6 @@ func Mem() uint64 {
 	return Proc.Mem
 }
 
-// initial the proc stat
-func init() {
-	go Refresh()
-}
-
 func readFile(filename string) (data []byte, err error) {
 	return exec.Command("/bin/cat", filename).Output()
 }

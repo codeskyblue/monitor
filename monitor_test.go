@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func init(){
-    Refresh()
+func init() {
+	Refresh()
 }
 
 func TestNCpu(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/shxsun/monitor"
+	"os"
 	"strings"
-    "os"
 )
 
 func main() {
@@ -29,10 +29,10 @@ func main() {
 		}
 
 		if strings.Contains(pi.Exe, flag.Arg(0)) {
-		fmt.Println("----------------------------")
+			fmt.Println("----------------------------")
 			fmt.Println("Pid: ", pid)
 			fmt.Println("Exe: ", pi.Exe)
-            fmt.Println("Fd size: ", len(pi.Fd))
+			fmt.Println("Fd size: ", len(pi.Fd))
 		}
 	}
 }

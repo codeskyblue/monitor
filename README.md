@@ -6,6 +6,7 @@ Used in Linux system.
 
 Parse /proc info and get Cpu, Mem, Hostname, Pids (and each state)
 
+Not maintained now. Please refer to the new project <https://github.com/cloudfoundry/gosigar>
 ## Download
 
     go get github.com/shxsun/monitor
